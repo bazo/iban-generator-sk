@@ -1,0 +1,20 @@
+{
+	"name": "bazo/iban-generator-sk",
+	"authors": [
+		{
+			"name": "Martin Bažík",
+			"email": "martin@bazo.sk"
+		}
+	],
+	"require": {
+		"ext-gmp": "*"
+	},
+	"require-dev": {
+		"nette/tester": "@dev"
+	},
+	"autoload": {
+		"psr-0": {
+			"Bazo": "src/"
+		}
+	}
+}
