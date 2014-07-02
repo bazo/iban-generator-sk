@@ -59,11 +59,11 @@ class IbanGenerator
 			$this->verifyPrefixLength($prefix);
 			$this->verifyNumberLength($number);
 			$this->verifyBankCodeLength($bankCode);
-			$core = $this->generateCore($prefix, $number);
-			$baseNumber = $this->generateBaseNumber($core, $bankCode);
+			$bban = $this->generateBban($bankCode, $prefix, $number);
+			$baseNumber = $this->generateBaseNumber($bban);
 			$controlCode = $this->generateControlCode($baseNumber);
 
-			return self::COUNTRY_CODE . $controlCode . $bankCode . $core;
+			return self::COUNTRY_CODE . $controlCode . $bban;
 		} catch (IbanValidationException $ex) {
 			return FALSE;
 		}
@@ -78,18 +78,19 @@ class IbanGenerator
 	}
 
 
-	private function generateBaseNumber($core, $bankCode)
+	private function generateBaseNumber($bban)
 	{
-		return $bankCode . $core . self::COUNTRY_CODE_NUMBER . '00';
+		return $bban . self::COUNTRY_CODE_NUMBER . '00';
 	}
 
 
-	private function generateCore($prefix, $number)
+	private function generateBban($bankCode, $prefix, $number)
 	{
+		$bankCode = str_pad($bankCode, 4, '0', STR_PAD_LEFT);
 		$prefix = str_pad($prefix, 6, '0', STR_PAD_LEFT);
 		$number = str_pad($number, 10, '0', STR_PAD_LEFT);
 		$this->verifyCore($prefix, $number);
-		return $prefix . $number;
+		return $bankCode.$prefix . $number;
 	}
 
 
