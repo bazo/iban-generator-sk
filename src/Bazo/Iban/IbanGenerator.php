@@ -47,6 +47,12 @@ class IbanGenerator
 	}
 
 
+	public static function create()
+	{
+		return new static;
+	}
+
+
 	public function generate($prefix, $number, $bankCode)
 	{
 		try {
