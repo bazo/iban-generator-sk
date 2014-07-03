@@ -8,14 +8,6 @@ require_once '../vendor/autoload.php';
 
 Environment::setup();
 
-$number = '122334455';
-$bankCode = '7500';
-$bankCode2 = '0200';
-$prefix = '19';
-
-$ibanNoPrefix = 'SK9802000000000122334455';
-$iban = 'SK0575000000190122334455';
-
 $ibanGenerator = new IbanGenerator;
 
 //fails
@@ -25,5 +17,6 @@ Assert::equal(FALSE, $ibanGenerator->generate('123456', '12345678901', '1234'));
 Assert::equal(FALSE, $ibanGenerator->generate('', '1234', '123'));
 
 //correct
-Assert::equal($ibanNoPrefix, $ibanGenerator->generate('', $number, $bankCode2));
-Assert::equal($iban, $ibanGenerator->generate($prefix, $number, $bankCode));
+Assert::equal('SK0575000000190122334455', $ibanGenerator->generate(19, '122334455', '7500'));
+Assert::equal('SK6202000000000122334455', $ibanGenerator->generate('', '122334455', '0200'));
+Assert::equal('SK6480200000001100615760', $ibanGenerator->generate('', '1100615760', '8020'));

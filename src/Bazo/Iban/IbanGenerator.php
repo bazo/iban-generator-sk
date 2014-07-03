@@ -16,7 +16,7 @@ class IbanGenerator
 	const BANK_CODE_ERROR = 'Bank code must be between 4 characters';
 	const ACCOUNT_NUMBER_ERROR = 'Account number is not correct';
 	const COUNTRY_CODE = 'SK';
-	const COUNTRY_CODE_NUMBER = 2820; //SK
+	const COUNTRY_CODE_NUMBER = '2820'; //SK
 
 	private $prefixWeights = [
 		1	 => 10,
@@ -41,7 +41,7 @@ class IbanGenerator
 
 	public function __construct()
 	{
-		if (!extension_loaded('gmp')) {
+		if (!extension_loaded('bcmath')) {
 			throw new \RuntimeException('gmp extension must be loaded');
 		}
 	}
@@ -72,7 +72,7 @@ class IbanGenerator
 
 	private function generateControlCode($baseNumber)
 	{
-		$mod = gmp_mod($baseNumber, 97);
+		$mod = bcmod($baseNumber, '97');
 		$controlNumber = 98 - $mod;
 		return str_pad($controlNumber, 2, '0', STR_PAD_LEFT);
 	}
@@ -90,7 +90,7 @@ class IbanGenerator
 		$prefix = str_pad($prefix, 6, '0', STR_PAD_LEFT);
 		$number = str_pad($number, 10, '0', STR_PAD_LEFT);
 		$this->verifyCore($prefix, $number);
-		return $bankCode.$prefix . $number;
+		return $bankCode . $prefix . $number;
 	}
 
 

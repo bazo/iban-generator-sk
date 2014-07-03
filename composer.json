@@ -7,7 +7,7 @@
 		}
 	],
 	"require": {
-		"ext-gmp": "*"
+		"ext-bcmath": "*"
 	},
 	"require-dev": {
 		"nette/tester": "@dev"
