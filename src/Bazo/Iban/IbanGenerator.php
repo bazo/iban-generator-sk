@@ -14,19 +14,20 @@ class IbanGenerator
 	const PREFIX_ERROR = 'Prefix cannot exceed 6 characters';
 	const NUMBER_ERROR = 'Number length must be between 2 and 10 characters';
 	const BANK_CODE_ERROR = 'Bank code must be between 4 characters';
+    const BANK_CODE_STATE_ERROR = 'Not a valid Slovak bank code';
 	const ACCOUNT_NUMBER_ERROR = 'Account number is not correct';
 	const COUNTRY_CODE = 'SK';
 	const COUNTRY_CODE_NUMBER = '2820'; //SK
 
-	private $prefixWeights = [
+	private $prefixWeights = array(
 		1	 => 10,
 		2	 => 5,
 		3	 => 8,
 		4	 => 4,
 		5	 => 2,
 		6	 => 1
-	];
-	private $numberWeights = [
+    );
+	private $numberWeights = array(
 		1	 => 6,
 		2	 => 3,
 		3	 => 7,
@@ -37,7 +38,48 @@ class IbanGenerator
 		8	 => 4,
 		9	 => 2,
 		10	 => 1
-	];
+    );
+    private $bankAccountCodes = array(
+        '0200',
+        '0720',
+        '0900',
+        '1100',
+        '1111',
+        '3000',
+        '3100',
+        '5200',
+        '5600',
+        '5900',
+        '6500',
+        '7300',
+        '7500',
+        '7930',
+        '8020',
+        '8050',
+        '8100',
+        '8120',
+        '8130',
+        '8160',
+        '8170',
+        '8180',
+        '8191',
+        '8300',
+        '8320',
+        '8330',
+        '8340',
+        '8350',
+        '8360',
+        '8370',
+        '8380',
+        '8390',
+        '8400',
+        '8410',
+        '8420',
+        '8430',
+        '9950',
+        '9951',
+        '9952'
+    );
 
 	public function __construct()
 	{
@@ -59,6 +101,7 @@ class IbanGenerator
 			$this->verifyPrefixLength($prefix);
 			$this->verifyNumberLength($number);
 			$this->verifyBankCodeLength($bankCode);
+            $this->verifyBankCodeState($bankCode);
 			$bban = $this->generateBban($bankCode, $prefix, $number);
 			$baseNumber = $this->generateBaseNumber($bban);
 			$controlCode = $this->generateControlCode($baseNumber);
@@ -165,5 +208,10 @@ class IbanGenerator
 		}
 	}
 
+    private function verifyBankCodeState($bankCode) {
+        if(!in_array($bankCode,$this->bankAccountCodes)) {
+            throw new IbanValidationException(self::BANK_CODE_STATE_ERROR);
+        }
+    }
 
 }
