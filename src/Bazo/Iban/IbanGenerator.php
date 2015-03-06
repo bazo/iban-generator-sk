@@ -2,8 +2,6 @@
 
 namespace Bazo\Iban;
 
-
-
 /**
  * @author Martin Bažík <martin@bazo.sk>
  * @see http://www.web-zoznam.sk/2014/01/kalkulacka-prevodu-cisla-uctu-na-iban/
@@ -11,33 +9,33 @@ namespace Bazo\Iban;
 class IbanGenerator
 {
 
-	const PREFIX_ERROR = 'Prefix cannot exceed 6 characters';
-	const NUMBER_ERROR = 'Number length must be between 2 and 10 characters';
-	const BANK_CODE_ERROR = 'Bank code must be between 4 characters';
+    const PREFIX_ERROR = 'Prefix cannot exceed 6 characters';
+    const NUMBER_ERROR = 'Number length must be between 2 and 10 characters';
+    const BANK_CODE_ERROR = 'Bank code must be between 4 characters';
     const BANK_CODE_STATE_ERROR = 'Not a valid Slovak bank code';
-	const ACCOUNT_NUMBER_ERROR = 'Account number is not correct';
-	const COUNTRY_CODE = 'SK';
-	const COUNTRY_CODE_NUMBER = '2820'; //SK
+    const ACCOUNT_NUMBER_ERROR = 'Account number is not correct';
+    const COUNTRY_CODE = 'SK';
+    const COUNTRY_CODE_NUMBER = '2820'; //SK
 
-	private $prefixWeights = array(
-		1	 => 10,
-		2	 => 5,
-		3	 => 8,
-		4	 => 4,
-		5	 => 2,
-		6	 => 1
+    private $prefixWeights = array(
+        1 => 10,
+        2 => 5,
+        3 => 8,
+        4 => 4,
+        5 => 2,
+        6 => 1
     );
-	private $numberWeights = array(
-		1	 => 6,
-		2	 => 3,
-		3	 => 7,
-		4	 => 9,
-		5	 => 10,
-		6	 => 5,
-		7	 => 8,
-		8	 => 4,
-		9	 => 2,
-		10	 => 1
+    private $numberWeights = array(
+        1 => 6,
+        2 => 3,
+        3 => 7,
+        4 => 9,
+        5 => 10,
+        6 => 5,
+        7 => 8,
+        8 => 4,
+        9 => 2,
+        10 => 1
     );
     private $bankAccountCodes = array(
         '0200',
@@ -81,135 +79,169 @@ class IbanGenerator
         '9952'
     );
 
-	public function __construct()
-	{
-		if (!extension_loaded('bcmath')) {
-			throw new \RuntimeException('gmp extension must be loaded');
-		}
-	}
+    /**
+     * @throws \RuntimeException
+     */
+    public function __construct()
+    {
+        if (!extension_loaded('bcmath')) {
+            throw new \RuntimeException('gmp extension must be loaded');
+        }
+    }
 
+    public static function create()
+    {
+        return new static;
+    }
 
-	public static function create()
-	{
-		return new static;
-	}
+    /**
+     * @param string $prefix
+     * @param string $number
+     * @param string $bankCode
+     * @return string
+     * @throws IbanValidationException
+     */
+    public function generate($prefix, $number, $bankCode)
+    {
+        $this->verifyPrefixLength($prefix);
+        $this->verifyNumberLength($number);
+        $this->verifyBankCodeLength($bankCode);
+        $this->verifyBankCodeState($bankCode);
+        $bban = $this->generateBban($bankCode, $prefix, $number);
+        $baseNumber = $this->generateBaseNumber($bban);
+        $controlCode = $this->generateControlCode($baseNumber);
+        return self::COUNTRY_CODE . $controlCode . $bban;
+    }
 
+    /**
+     * @param $baseNumber
+     * @return string
+     */
+    private function generateControlCode($baseNumber)
+    {
+        $mod = bcmod($baseNumber, '97');
+        $controlNumber = 98 - $mod;
+        return str_pad($controlNumber, 2, '0', STR_PAD_LEFT);
+    }
 
-	public function generate($prefix, $number, $bankCode)
-	{
-		try {
-			$this->verifyPrefixLength($prefix);
-			$this->verifyNumberLength($number);
-			$this->verifyBankCodeLength($bankCode);
-            $this->verifyBankCodeState($bankCode);
-			$bban = $this->generateBban($bankCode, $prefix, $number);
-			$baseNumber = $this->generateBaseNumber($bban);
-			$controlCode = $this->generateControlCode($baseNumber);
+    /**
+     * @param string $bban
+     * @return string
+     */
+    private function generateBaseNumber($bban)
+    {
+        return $bban . self::COUNTRY_CODE_NUMBER . '00';
+    }
 
-			return self::COUNTRY_CODE . $controlCode . $bban;
-		} catch (IbanValidationException $ex) {
-			return FALSE;
-		}
-	}
+    /**
+     * @param string $bankCode
+     * @param string $prefix
+     * @param string $number
+     * @return string
+     * @throws IbanValidationException
+     */
+    private function generateBban($bankCode, $prefix, $number)
+    {
+        $bankCode = str_pad($bankCode, 4, '0', STR_PAD_LEFT);
+        $prefix = str_pad($prefix, 6, '0', STR_PAD_LEFT);
+        $number = str_pad($number, 10, '0', STR_PAD_LEFT);
+        $this->verifyCore($prefix, $number);
+        return $bankCode . $prefix . $number;
+    }
 
+    /**
+     * @param $prefix
+     * @param $number
+     * @throws IbanValidationException
+     */
+    private function verifyCore($prefix, $number)
+    {
+        $sum = $this->sumPrefix($prefix) + $this->sumNumber($number);
+        $mod = $sum % 11;
+        if ($mod !== 0) {
+            throw new IbanValidationException(self::PREFIX_ERROR);
+        }
+    }
 
-	private function generateControlCode($baseNumber)
-	{
-		$mod = bcmod($baseNumber, '97');
-		$controlNumber = 98 - $mod;
-		return str_pad($controlNumber, 2, '0', STR_PAD_LEFT);
-	}
+    /**
+     * @param $prefix
+     * @return int
+     */
+    private function sumPrefix($prefix)
+    {
+        $sum = 0;
+        for ($i = 1; $i <= 6; $i++) {
+            $num = (int)$prefix[$i - 1];
+            $weight = $this->prefixWeights[$i];
+            $sum += $num * $weight;
+        }
+        return $sum;
+    }
 
+    /**
+     * @param $number
+     * @return int
+     */
+    private function sumNumber($number)
+    {
+        $sum = 0;
+        for ($i = 1; $i <= 10; $i++) {
+            $num = (int)$number[$i - 1];
+            $weight = $this->numberWeights[$i];
+            $sum += $num * $weight;
+        }
+        return $sum;
+    }
 
-	private function generateBaseNumber($bban)
-	{
-		return $bban . self::COUNTRY_CODE_NUMBER . '00';
-	}
+    /**
+     * @param string $prefix
+     * @throws IbanValidationException
+     */
+    private function verifyPrefixLength($prefix)
+    {
+        $prefix = (string)$prefix;
+        $length = strlen($prefix);
 
+        if ($length > 6) {
+            throw new IbanValidationException(self::PREFIX_ERROR);
+        }
+    }
 
-	private function generateBban($bankCode, $prefix, $number)
-	{
-		$bankCode = str_pad($bankCode, 4, '0', STR_PAD_LEFT);
-		$prefix = str_pad($prefix, 6, '0', STR_PAD_LEFT);
-		$number = str_pad($number, 10, '0', STR_PAD_LEFT);
-		$this->verifyCore($prefix, $number);
-		return $bankCode . $prefix . $number;
-	}
+    /**
+     * @param string $number
+     * @throws IbanValidationException
+     */
+    private function verifyNumberLength($number)
+    {
+        $number = (string)$number;
+        $length = strlen($number);
 
+        if ($length > 10 or $length < 2) {
+            throw new IbanValidationException(self::NUMBER_ERROR);
+        }
+    }
 
-	private function verifyCore($prefix, $number)
-	{
-		$sum = $this->sumPrefix($prefix) + $this->sumNumber($number);
-		$mod = $sum % 11;
+    /**
+     * @param string $bankCode
+     * @throws IbanValidationException
+     */
+    private function verifyBankCodeLength($bankCode)
+    {
+        $bankCode = (string)$bankCode;
+        $length = strlen($bankCode);
 
-		if ($mod !== 0) {
-			throw new IbanValidationException(self::PREFIX_ERROR);
-		}
-	}
+        if ($length !== 4) {
+            throw new IbanValidationException(self::BANK_CODE_ERROR);
+        }
+    }
 
-
-	private function sumPrefix($prefix)
-	{
-		$sum = 0;
-
-		for ($i = 1; $i <= 6; $i++) {
-			$num = (int) $prefix[$i - 1];
-			$weight = $this->prefixWeights[$i];
-			$sum += $num * $weight;
-		}
-
-		return $sum;
-	}
-
-
-	private function sumNumber($number)
-	{
-		$sum = 0;
-
-		for ($i = 1; $i <= 10; $i++) {
-			$num = (int) $number[$i - 1];
-			$weight = $this->numberWeights[$i];
-			$sum += $num * $weight;
-		}
-
-		return $sum;
-	}
-
-
-	private function verifyPrefixLength($prefix)
-	{
-		$prefix = (string) $prefix;
-		$length = strlen($prefix);
-
-		if ($length > 6) {
-			throw new IbanValidationException(self::PREFIX_ERROR);
-		}
-	}
-
-
-	private function verifyNumberLength($number)
-	{
-		$number = (string) $number;
-		$length = strlen($number);
-
-		if ($length > 10 or $length < 2) {
-			throw new IbanValidationException(self::NUMBER_ERROR);
-		}
-	}
-
-
-	private function verifyBankCodeLength($bankCode)
-	{
-		$bankCode = (string) $bankCode;
-		$length = strlen($bankCode);
-
-		if ($length !== 4) {
-			throw new IbanValidationException(self::BANK_CODE_ERROR);
-		}
-	}
-
-    private function verifyBankCodeState($bankCode) {
-        if(!in_array($bankCode,$this->bankAccountCodes)) {
+    /**
+     * @param string $bankCode
+     * @throws IbanValidationException
+     */
+    private function verifyBankCodeState($bankCode)
+    {
+        if (!in_array($bankCode, $this->bankAccountCodes)) {
             throw new IbanValidationException(self::BANK_CODE_STATE_ERROR);
         }
     }
